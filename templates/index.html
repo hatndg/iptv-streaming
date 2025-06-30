@@ -1,19 +1,45 @@
 <!doctype html>
-<html>
-<head>
-    <title>Livestream Dashboard</title>
-</head>
-<body>
-    <h1>Dashboard Livestream</h1>
-    <h3>Status: {{ status }}</h3>
-    <p>{{ msg }}</p>
-    <form method="POST">
-      <label>M3U8 source:</label><br>
-      <input type="text" name="src" required><br><br>
-      <label>RTMP target:</label><br>
-      <input type="text" name="dst" required><br><br>
-      <button name="action" value="start">Start</button>
-      <button name="action" value="stop">Stop</button>
+<title>Multistream Dashboard</title>
+<h1>Dashboard livestream</h1>
+<p>CPU: {{ cpu }}% | RAM: {{ mem }}%</p>
+<hr>
+<h2>Thêm stream mới</h2>
+<form method="POST">
+  <input type="hidden" name="action" value="start">
+  M3U8: <input type="text" name="src" required><br>
+  RTMP: <input type="text" name="dst" required><br>
+  <button type="submit">Start</button>
+</form>
+<hr>
+<h2>Danh sách streams</h2>
+<table border="1">
+<tr><th>ID</th><th>M3U8</th><th>RTMP</th><th>Trạng thái</th><th>Hành động</th></tr>
+{% for sid, stream in streams.items() %}
+<tr>
+  <td>{{ sid }}</td>
+  <td>{{ stream.src }}</td>
+  <td>{{ stream.dst }}</td>
+  <td>{{ stream.status }}</td>
+  <td>
+    <form method="POST" style="display:inline;">
+      <input type="hidden" name="stream_id" value="{{ sid }}">
+      <input type="hidden" name="action" value="stop">
+      <button>Stop</button>
     </form>
-</body>
-</html>
+    <form method="POST" style="display:inline;">
+      <input type="hidden" name="stream_id" value="{{ sid }}">
+      <input type="hidden" name="action" value="delete">
+      <button>Delete</button>
+    </form>
+    <form method="POST" style="display:inline;">
+      <input type="hidden" name="stream_id" value="{{ sid }}">
+      <input type="hidden" name="action" value="edit">
+      <input name="src" placeholder="new src" required>
+      <input name="dst" placeholder="new dst" required>
+      <button>Edit</button>
+    </form>
+  </td>
+</tr>
+{% endfor %}
+</table>
+<p><a href="/logout">Logout</a></p>
