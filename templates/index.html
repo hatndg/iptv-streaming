@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+    <title>Livestream Dashboard</title>
+</head>
+<body>
+    <h1>Dashboard Livestream</h1>
+    <h3>Status: {{ status }}</h3>
+    <p>{{ msg }}</p>
+    <form method="POST">
+      <label>M3U8 source:</label><br>
+      <input type="text" name="src" required><br><br>
+      <label>RTMP target:</label><br>
+      <input type="text" name="dst" required><br><br>
+      <button name="action" value="start">Start</button>
+      <button name="action" value="stop">Stop</button>
+    </form>
+</body>
+</html>
