@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: livestream-dashboard-filefix
+    name: livestream-dashboard-delaystop
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
