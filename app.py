@@ -67,11 +67,16 @@ def index():
         if action == 'start':
             src = request.form.get('src')
             dst = request.form.get('dst')
+            vbit = request.form.get('vbit')
+            abit = request.form.get('abit')
             if src and dst:
                 stream_id = str(uuid.uuid4())[:8]
-                cmd = ['ffmpeg', '-re', '-i', src, '-c:v', 'copy', '-c:a', 'aac', '-f', 'flv', dst]
+                cmd = ['ffmpeg', '-re', '-i', src]
+                if vbit: cmd += ['-b:v', vbit]
+                if abit: cmd += ['-b:a', abit]
+                cmd += ['-c:v', 'copy' if not vbit else 'libx264', '-c:a', 'aac', '-f', 'flv', dst]
                 proc = subprocess.Popen(cmd)
-                STREAMS[stream_id] = {'src': src, 'dst': dst, 'status': 'running'}
+                STREAMS[stream_id] = {'src': src, 'dst': dst, 'vbit': vbit, 'abit': abit, 'status': 'running'}
                 PROCESSES[stream_id] = proc
                 save_streams()
         elif action == 'stop':
@@ -91,13 +96,18 @@ def index():
             sid = request.form.get('stream_id')
             new_src = request.form.get('src')
             new_dst = request.form.get('dst')
+            vbit = request.form.get('vbit')
+            abit = request.form.get('abit')
             if sid in STREAMS and new_src and new_dst:
                 if STREAMS[sid]['status'] == 'running' and sid in PROCESSES:
                     PROCESSES[sid].terminate()
-                cmd = ['ffmpeg', '-re', '-i', new_src, '-c:v', 'copy', '-c:a', 'aac', '-f', 'flv', new_dst]
+                cmd = ['ffmpeg', '-re', '-i', new_src]
+                if vbit: cmd += ['-b:v', vbit]
+                if abit: cmd += ['-b:a', abit]
+                cmd += ['-c:v', 'copy' if not vbit else 'libx264', '-c:a', 'aac', '-f', 'flv', new_dst]
                 proc = subprocess.Popen(cmd)
                 PROCESSES[sid] = proc
-                STREAMS[sid] = {'src': new_src, 'dst': new_dst, 'status': 'running'}
+                STREAMS[sid] = {'src': new_src, 'dst': new_dst, 'vbit': vbit, 'abit': abit, 'status': 'running'}
                 save_streams()
 
     cpu = psutil.cpu_percent()
@@ -109,6 +119,5 @@ def healthz():
     return 'OK', 200
 
 if __name__ == '__main__':
-    import os
-    PORT = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=PORT)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
