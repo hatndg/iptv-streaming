@@ -23,20 +23,15 @@ def save_streams():
     with open(STREAMS_FILE, "w") as f:
         json.dump(STREAMS, f)
 
-def schedule_stop_by_time(sid, delay_minutes):
+def schedule_delay_stop(sid, delay_minutes):
     def worker():
         time.sleep(delay_minutes * 60)
-        if sid in PROCESSES:
-            PROCESSES[sid].terminate()
+        proc = PROCESSES.get(sid)
+        if proc:
+            proc.terminate()
             STREAMS[sid]["status"] = "stopped"
             save_streams()
     threading.Thread(target=worker, daemon=True).start()
-
-def monitor_file_end(sid, proc):
-    proc.wait()
-    if sid in STREAMS and STREAMS[sid].get("file_end_stop") == "on":
-        STREAMS[sid]["status"] = "stopped"
-        save_streams()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -85,37 +80,20 @@ def index():
             vbit = request.form.get('vbit')
             abit = request.form.get('abit')
             delay = request.form.get('delaymin')
-            loop = request.form.get('loop')
-            file_stop = request.form.get('file_end_stop')
             if src and dst:
                 sid = str(uuid.uuid4())[:8]
-                cmd = ['ffmpeg']
-                if src.startswith('http') and '.m3u8' in src:
-                    cmd += ['-re']
-                elif src.startswith('file://') or os.path.exists(src):
-                    if loop == 'on':
-                        cmd += ['-stream_loop', '-1']
-                    cmd += ['-re']
-                cmd += ['-i', src]
-                cmd += ['-c:v', 'libx264']
-                cmd += ['-c:a', 'aac']
+                cmd = ['ffmpeg', '-re', '-i', src]
                 if vbit: cmd += ['-b:v', vbit]
                 if abit: cmd += ['-b:a', abit]
-                cmd += ['-f', 'flv', dst]
+                cmd += ['-c:v', 'copy' if not vbit else 'libx264', '-c:a', 'aac', '-f', 'flv', dst]
                 proc = subprocess.Popen(cmd)
-                STREAMS[sid] = {
-                    'src': src, 'dst': dst, 'vbit': vbit, 'abit': abit,
-                    'delaymin': delay, 'loop': loop, 'file_end_stop': file_stop,
-                    'status': 'running'
-                }
+                STREAMS[sid] = {'src': src, 'dst': dst, 'vbit': vbit, 'abit': abit, 'delaymin': delay, 'status': 'running'}
                 PROCESSES[sid] = proc
                 if delay:
                     try:
                         mins = int(delay)
-                        schedule_stop_by_time(sid, mins)
+                        schedule_delay_stop(sid, mins)
                     except: pass
-                elif file_stop == "on" and loop != "on":
-                    threading.Thread(target=monitor_file_end, args=(sid, proc), daemon=True).start()
                 save_streams()
         elif action == 'stop':
             sid = request.form.get('stream_id')
