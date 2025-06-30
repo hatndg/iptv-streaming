@@ -1,45 +1,57 @@
 <!doctype html>
-<title>Multistream Dashboard</title>
-<h1>Dashboard livestream</h1>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Livestream Dashboard</title>
+    <style>
+      body { font-family: sans-serif; padding: 10px; }
+      input, button { width: 100%; margin: 5px 0; padding: 6px; }
+      table { width: 100%; font-size: 14px; border-collapse: collapse; }
+      td, th { border: 1px solid #ccc; padding: 4px; }
+      @media(min-width: 600px){ input,button{width:auto;display:inline-block} }
+    </style>
+</head>
+<body>
+<h2>Livestream Dashboard</h2>
 <p>CPU: {{ cpu }}% | RAM: {{ mem }}%</p>
-<hr>
-<h2>Thêm stream mới</h2>
 <form method="POST">
   <input type="hidden" name="action" value="start">
-  M3U8: <input type="text" name="src" required><br>
-  RTMP: <input type="text" name="dst" required><br>
-  <button type="submit">Start</button>
+  <input name="src" placeholder="Input (m3u8, file, rtsp...)" required>
+  <input name="dst" placeholder="Output RTMP" required>
+  <input name="vbit" placeholder="Video Bitrate (e.g. 1500k)">
+  <input name="abit" placeholder="Audio Bitrate (e.g. 128k)">
+  <button>Start Stream</button>
 </form>
 <hr>
-<h2>Danh sách streams</h2>
-<table border="1">
-<tr><th>ID</th><th>M3U8</th><th>RTMP</th><th>Trạng thái</th><th>Hành động</th></tr>
-{% for sid, stream in streams.items() %}
-<tr>
-  <td>{{ sid }}</td>
-  <td>{{ stream.src }}</td>
-  <td>{{ stream.dst }}</td>
-  <td>{{ stream.status }}</td>
-  <td>
-    <form method="POST" style="display:inline;">
-      <input type="hidden" name="stream_id" value="{{ sid }}">
-      <input type="hidden" name="action" value="stop">
-      <button>Stop</button>
-    </form>
-    <form method="POST" style="display:inline;">
-      <input type="hidden" name="stream_id" value="{{ sid }}">
-      <input type="hidden" name="action" value="delete">
-      <button>Delete</button>
-    </form>
-    <form method="POST" style="display:inline;">
-      <input type="hidden" name="stream_id" value="{{ sid }}">
-      <input type="hidden" name="action" value="edit">
-      <input name="src" placeholder="new src" required>
-      <input name="dst" placeholder="new dst" required>
-      <button>Edit</button>
-    </form>
-  </td>
-</tr>
+<h3>Active Streams</h3>
+{% for sid, s in streams.items() %}
+<div>
+  <b>ID:</b> {{ sid }}<br>
+  <b>From:</b> {{ s.src }}<br>
+  <b>To:</b> {{ s.dst }}<br>
+  <b>Status:</b> {{ s.status }}<br>
+  <form method="POST" style="display:inline">
+    <input type="hidden" name="action" value="stop">
+    <input type="hidden" name="stream_id" value="{{ sid }}">
+    <button>Stop</button>
+  </form>
+  <form method="POST" style="display:inline">
+    <input type="hidden" name="action" value="delete">
+    <input type="hidden" name="stream_id" value="{{ sid }}">
+    <button>Delete</button>
+  </form>
+  <form method="POST">
+    <input type="hidden" name="action" value="edit">
+    <input type="hidden" name="stream_id" value="{{ sid }}">
+    <input name="src" placeholder="New Source" required>
+    <input name="dst" placeholder="New RTMP" required>
+    <input name="vbit" placeholder="Video Bitrate">
+    <input name="abit" placeholder="Audio Bitrate">
+    <button>Edit</button>
+  </form>
+  <hr>
+</div>
 {% endfor %}
-</table>
-<p><a href="/logout">Logout</a></p>
+<a href="/logout">Logout</a>
+</body>
+</html>
