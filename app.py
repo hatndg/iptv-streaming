@@ -1,8 +1,8 @@
-from flask import Flask, render_template, request, redirect, session, url_for
-import subprocess, os, hashlib, psutil, uuid, json
+from flask import Flask, render_template, request, redirect, session
+import subprocess, os, hashlib, psutil, uuid, json, threading, time
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "secretkey")
+app.secret_key = os.environ.get("SECRET_KEY", "secret")
 PASS_FILE = "password.txt"
 DEFAULT_PASS = "Admin@123"
 STREAMS_FILE = "streams.json"
@@ -22,6 +22,16 @@ if os.path.exists(STREAMS_FILE):
 def save_streams():
     with open(STREAMS_FILE, "w") as f:
         json.dump(STREAMS, f)
+
+def schedule_delay_stop(sid, delay_minutes):
+    def worker():
+        time.sleep(delay_minutes * 60)
+        proc = PROCESSES.get(sid)
+        if proc:
+            proc.terminate()
+            STREAMS[sid]["status"] = "stopped"
+            save_streams()
+    threading.Thread(target=worker, daemon=True).start()
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -69,15 +79,21 @@ def index():
             dst = request.form.get('dst')
             vbit = request.form.get('vbit')
             abit = request.form.get('abit')
+            delay = request.form.get('delaymin')
             if src and dst:
-                stream_id = str(uuid.uuid4())[:8]
+                sid = str(uuid.uuid4())[:8]
                 cmd = ['ffmpeg', '-re', '-i', src]
                 if vbit: cmd += ['-b:v', vbit]
                 if abit: cmd += ['-b:a', abit]
                 cmd += ['-c:v', 'copy' if not vbit else 'libx264', '-c:a', 'aac', '-f', 'flv', dst]
                 proc = subprocess.Popen(cmd)
-                STREAMS[stream_id] = {'src': src, 'dst': dst, 'vbit': vbit, 'abit': abit, 'status': 'running'}
-                PROCESSES[stream_id] = proc
+                STREAMS[sid] = {'src': src, 'dst': dst, 'vbit': vbit, 'abit': abit, 'delaymin': delay, 'status': 'running'}
+                PROCESSES[sid] = proc
+                if delay:
+                    try:
+                        mins = int(delay)
+                        schedule_delay_stop(sid, mins)
+                    except: pass
                 save_streams()
         elif action == 'stop':
             sid = request.form.get('stream_id')
@@ -92,23 +108,6 @@ def index():
             STREAMS.pop(sid, None)
             PROCESSES.pop(sid, None)
             save_streams()
-        elif action == 'edit':
-            sid = request.form.get('stream_id')
-            new_src = request.form.get('src')
-            new_dst = request.form.get('dst')
-            vbit = request.form.get('vbit')
-            abit = request.form.get('abit')
-            if sid in STREAMS and new_src and new_dst:
-                if STREAMS[sid]['status'] == 'running' and sid in PROCESSES:
-                    PROCESSES[sid].terminate()
-                cmd = ['ffmpeg', '-re', '-i', new_src]
-                if vbit: cmd += ['-b:v', vbit]
-                if abit: cmd += ['-b:a', abit]
-                cmd += ['-c:v', 'copy' if not vbit else 'libx264', '-c:a', 'aac', '-f', 'flv', new_dst]
-                proc = subprocess.Popen(cmd)
-                PROCESSES[sid] = proc
-                STREAMS[sid] = {'src': new_src, 'dst': new_dst, 'vbit': vbit, 'abit': abit, 'status': 'running'}
-                save_streams()
 
     cpu = psutil.cpu_percent()
     mem = psutil.virtual_memory().percent
