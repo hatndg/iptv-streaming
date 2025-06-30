@@ -1,11 +1,8 @@
 services:
   - type: web
-    name: livestream-dashboard
+    name: livestream-dashboard-pro
     env: python
     plan: free
-    buildCommand: pip install flask
+    buildCommand: pip install -r requirements.txt
     startCommand: python app.py
     healthCheckPath: /healthz
-    envVars:
-      - key: FLASK_ENV
-        value: production
