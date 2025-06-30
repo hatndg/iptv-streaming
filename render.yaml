@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: livestream-dashboard
+    env: python
+    plan: free
+    buildCommand: pip install flask
+    startCommand: python app.py
+    healthCheckPath: /healthz
+    envVars:
+      - key: FLASK_ENV
+        value: production
