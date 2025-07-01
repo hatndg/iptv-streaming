@@ -25,7 +25,7 @@ def generate_stream(channel_url):
         "-preset", "ultrafast",
         "-tune", "zerolatency",
         "-c:a", "aac",
-        "-f", "flv",  # FLV để stream qua HTTP dễ hơn
+        "-f", "flv",
         "pipe:1"
     ]
     return subprocess.Popen(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -53,12 +53,12 @@ def stream_channel(channel):
 @app.route("/")
 def index():
     return """
-    <h2>Máy chủ Truyền hình</h2>
-    <ul>
-        <li><a href="/stream/vtv1">Xem VTV1</a></li>
-        <li><a href="/stream/vtv3">Xem VTV3</a></li>
-    </ul>
+    <h2>dungtv</h2>
     """
+
+@app.route("/healthz")
+def health_check():
+    return "OK", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
