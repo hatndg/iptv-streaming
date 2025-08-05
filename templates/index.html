@@ -1,45 +1,136 @@
-<!doctype html>
-<html><head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Delay Stop Stream</title>
-  <style>
-    body{font-family:sans-serif;padding:10px}
-    input,button{width:100%;margin:4px 0;padding:6px}
-    table{width:100%;font-size:14px;border-collapse:collapse}
-    td,th{border:1px solid #ccc;padding:5px}
-    @media(min-width:600px){input,button{width:auto;display:inline-block}}
-  </style>
-</head><body>
-<h2>Livestream Dashboard (Delay Stop)</h2>
-<p>CPU: {{cpu}}% | RAM: {{mem}}%</p>
-<form method="POST">
-  <input type="hidden" name="action" value="start">
-  <input name="src" placeholder="Input (file, m3u8, rtsp...)" required>
-  <input name="dst" placeholder="Output RTMP" required>
-  <input name="vbit" placeholder="Video Bitrate (e.g. 1500k)">
-  <input name="abit" placeholder="Audio Bitrate (e.g. 128k)">
-  <input name="delaymin" placeholder="Stop sau (phút)">
-  <button>Start Stream</button>
-</form><hr>
-<h3>Danh sách stream</h3>
-{% for sid, s in streams.items() %}
-<div>
-  <b>ID:</b> {{sid}}<br>
-  <b>From:</b> {{s.src}}<br>
-  <b>To:</b> {{s.dst}}<br>
-  <b>Status:</b> {{s.status}}<br>
-  <b>Auto Stop:</b> {{s.delaymin or 'Không'}} phút<br>
-  <form method="POST" style="display:inline">
-    <input type="hidden" name="action" value="stop">
-    <input type="hidden" name="stream_id" value="{{sid}}">
-    <button>Stop</button>
-  </form>
-  <form method="POST" style="display:inline">
-    <input type="hidden" name="action" value="delete">
-    <input type="hidden" name="stream_id" value="{{sid}}">
-    <button>Delete</button>
-  </form><hr>
-</div>
-{% endfor %}
-<a href="/logout">Logout</a>
-</body></html>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1, h2 { color: #444; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 20px;}
+        .header a { text-decoration: none; background-color: #555; color: white; padding: 8px 15px; border-radius: 5px; }
+        .header a:hover { background-color: #e74c3c; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f8f8f8; }
+        .status-running { color: green; font-weight: bold; }
+        .status-stopped { color: red; font-weight: bold; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: end; }
+        .form-grid input, .form-grid button { padding: 10px; border-radius: 5px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+        .form-grid button { background-color: #28a745; color: white; cursor: pointer; border: none; font-weight: bold; }
+        .form-grid button:hover { background-color: #218838; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { margin-bottom: 5px; font-size: 14px; color: #555; }
+        .action-buttons form { display: inline-block; }
+        .action-buttons button { padding: 5px 10px; margin-right: 5px; border-radius: 4px; border: none; cursor: pointer; color: white; }
+        .btn-stop { background-color: #ffc107; }
+        .btn-delete { background-color: #dc3545; }
+        .stats { display: flex; gap: 20px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Bảng điều khiển Stream</h1>
+            <a href="/logout">Đăng xuất</a>
+        </div>
+        
+        <h2>Thêm Stream Mới</h2>
+        <form method="POST">
+            <input type="hidden" name="action" value="start">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="src">Nguồn (Source URL):</label>
+                    <input type="text" id="src" name="src" placeholder="rtsp://... hoặc rtmp://..." required>
+                </div>
+                <div class="form-group">
+                    <label for="dst">Đích (Destination RTMP):</label>
+                    <input type="text" id="dst" name="dst" placeholder="rtmp://a.rtmp.youtube.com/live2/..." required>
+                </div>
+                <div class="form-group">
+                    <label for="vbit">Video Bitrate (vd: 1500k):</label>
+                    <input type="text" id="vbit" name="vbit" placeholder="Bỏ trống để copy">
+                </div>
+                <div class="form-group">
+                    <label for="abit">Audio Bitrate (vd: 128k):</label>
+                    <input type="text" id="abit" name="abit" placeholder="Mặc định 128k aac">
+                </div>
+                <div class="form-group">
+                    <label for="delaymin">Tự dừng sau (phút):</label>
+                    <input type="number" id="delaymin" name="delaymin" min="1" placeholder="Bỏ trống để chạy mãi">
+                </div>
+                <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;">
+                    <!-- Checkbox mới cho chế độ copy -->
+                    <input type="checkbox" id="stream_copy" name="stream_copy" onchange="toggleBitrateInputs()">
+                    <label for="stream_copy" style="margin-bottom: 0;">Copy Stream (No Transcode)</label>
+                </div>
+                <button type="submit">Bắt đầu</button>
+            </div>
+        </form>
+
+        <h2>Danh sách Stream</h2>
+        <div class="stats">
+            <span>CPU: {{ cpu }}%</span>
+            <span>Memory: {{ mem }}%</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nguồn</th>
+                    <th>Đích</th>
+                    <th>V-Bitrate</th>
+                    <th>A-Bitrate</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sid, stream in streams.items() %}
+                <tr>
+                    <td title="{{ stream.src }}">{{ stream.src[:40] }}...</td>
+                    <td title="{{ stream.dst }}">{{ stream.dst[:40] }}...</td>
+                    <td>{{ stream.vbit or 'N/A' }}</td>
+                    <td>{{ stream.abit or 'N/A' }}</td>
+                    <td>
+                        <span class="status-{{ stream.status }}">{{ stream.status }}</span>
+                    </td>
+                    <td class="action-buttons">
+                        {% if stream.status == 'running' %}
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="action" value="stop">
+                            <input type="hidden" name="stream_id" value="{{ sid }}">
+                            <button type="submit" class="btn-stop">Dừng</button>
+                        </form>
+                        {% endif %}
+                        <form method="POST" style="display:inline;">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="stream_id" value="{{ sid }}">
+                            <button type="submit" class="btn-delete">Xóa</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // JavaScript để vô hiệu hóa ô bitrate khi chọn "Copy Stream"
+        function toggleBitrateInputs() {
+            var isChecked = document.getElementById('stream_copy').checked;
+            document.getElementById('vbit').disabled = isChecked;
+            document.getElementById('abit').disabled = isChecked;
+            if (isChecked) {
+                document.getElementById('vbit').value = '';
+                document.getElementById('abit').value = '';
+                document.getElementById('vbit').placeholder = 'Đã vô hiệu hóa';
+                document.getElementById('abit').placeholder = 'Đã vô hiệu hóa';
+            } else {
+                document.getElementById('vbit').placeholder = 'Bỏ trống để copy';
+                document.getElementById('abit').placeholder = 'Mặc định 128k aac';
+            }
+        }
+    </script>
+</body>
+</html>
