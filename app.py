@@ -12,7 +12,7 @@ PROCESSES = {}
 def hash_pass(p):
     return hashlib.sha256(p.encode()).hexdigest()
 
-# --- Khởi tạo ---
+# --- Khởi tạo --- 
 if not os.path.exists(PASS_FILE):
     with open(PASS_FILE, "w") as f:
         f.write(hash_pass(DEFAULT_PASS))
