@@ -6,6 +6,10 @@ app.secret_key = os.environ.get("SECRET_KEY", "a_very_secret_key_for_flask") # T
 PASS_FILE = "password.txt"
 DEFAULT_PASS = "Admin@123"
 STREAMS_FILE = "streams.json"
+
+# --- THÊM MỚI: User-Agent để giả lập trình duyệt ---
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
 STREAMS = {}
 PROCESSES = {}
 
@@ -134,12 +138,16 @@ def index():
                 sid = str(uuid.uuid4())[:8]
                 cmd = ['ffmpeg']
 
+                # --- CẬP NHẬT: Thêm User-Agent nếu là nguồn HTTP/HTTPS ---
+                if src.startswith('http://') or src.startswith('https://'):
+                    cmd += ['-user_agent', USER_AGENT]
+
                 if src.startswith('rtsp://'):
                     cmd += ['-rtsp_transport', 'tcp']
                 
                 cmd += ['-re', '-i', src]
 
-                # Đặt trạng thái là 'running' TRƯỚC KHI bắt đầu worker
+                # Đặt trạng thái là 'running' TRƯỚỚC KHI bắt đầu worker
                 stream_info = {'src': src, 'dst': dst, 'delaymin': delay, 'status': 'running'}
 
                 if stream_copy_mode:
@@ -164,7 +172,6 @@ def index():
                 save_streams()
 
                 # Bắt đầu worker trong một luồng nền để quản lý tiến trình ffmpeg
-                # Worker này sẽ tự động khởi động lại nếu tiến trình gặp lỗi
                 worker_thread = threading.Thread(target=stream_worker, args=(sid, cmd), daemon=True)
                 worker_thread.start()
 
@@ -223,6 +230,11 @@ def build_cmd_for_stream(sid):
     abit = stream.get('abit')
     
     cmd = ['ffmpeg']
+
+    # --- CẬP NHẬT: Thêm User-Agent nếu là nguồn HTTP/HTTPS ---
+    if src.startswith('http://') or src.startswith('https://'):
+        cmd += ['-user_agent', USER_AGENT]
+    
     if src.startswith('rtsp://'):
         cmd += ['-rtsp_transport', 'tcp']
     
